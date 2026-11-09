@@ -36,7 +36,7 @@ async function Content({
           <CardContent className="flex flex-col items-center gap-3">
             <a href="/api/connect/start">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="https://www.openllm.sh/connect/button.svg" alt="Connect with OpenLLM" height={44} />
+              <img src={`${openllm().apiOrigin}/connect/button.svg`} alt="Connect with OpenLLM" height={44} />
             </a>
             {error && <p className="text-destructive text-sm">Couldn&apos;t connect: {error}</p>}
           </CardContent>
