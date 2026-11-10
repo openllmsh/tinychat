@@ -1,21 +1,8 @@
 import { Suspense } from "react";
 import { Chat } from "@/components/chat";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { openllmFetch } from "@/lib/openllm-connect";
-import { openllm } from "@/lib/openllm";
-import { loadConnection, saveConnection } from "@/lib/store";
-
-const listModels = async (): Promise<string[]> => {
-  const conn = await loadConnection();
-  if (!conn) return [];
-  try {
-    const res = await openllmFetch(openllm(), conn, "/v1/models", {}, saveConnection);
-    const body = (await res.json()) as { data?: { id: string }[] };
-    return body.data?.map((m) => m.id) ?? [];
-  } catch {
-    return [];
-  }
-};
+import { connectButtonUrl, isOpenLLMError } from "@openllmsh/sdk/connect";
+import { connect, LOCAL_USER } from "@/lib/openllm";
 
 async function Content({
   searchParams,
@@ -23,9 +10,17 @@ async function Content({
   searchParams: Promise<{ error?: string }>;
 }): Promise<React.ReactElement> {
   const { error } = await searchParams;
-  const conn = await loadConnection();
+  const user = await connect.user(LOCAL_USER);
+  // A revoked connection is forgotten by the SDK; any other failure just
+  // leaves the model list empty.
+  const models = user
+    ? await user
+        .models()
+        .then((list) => list.map((m) => m.id))
+        .catch((err: unknown) => (isOpenLLMError(err) && err.needsReconnect ? null : []))
+    : null;
 
-  if (!conn)
+  if (!user || !models)
     return (
       <main className="flex min-h-svh items-center justify-center p-4">
         <Card className="w-full max-w-sm text-center">
@@ -36,7 +31,7 @@ async function Content({
           <CardContent className="flex flex-col items-center gap-3">
             <a href="/api/connect/start">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${openllm().apiOrigin}/connect/button.svg`} alt="Connect with OpenLLM" height={44} />
+              <img src={connectButtonUrl(connect.config)} alt="Connect with OpenLLM" height={44} />
             </a>
             {error && <p className="text-destructive text-sm">Couldn&apos;t connect: {error}</p>}
           </CardContent>
@@ -44,8 +39,7 @@ async function Content({
       </main>
     );
 
-  const models = await listModels();
-  return <Chat userId={conn.userId} models={models} />;
+  return <Chat userId={user.userId} models={models} />;
 }
 
 export default function Home({

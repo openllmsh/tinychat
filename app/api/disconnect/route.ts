@@ -1,10 +1,7 @@
-import { disconnect } from "@/lib/openllm-connect";
-import { openllm } from "@/lib/openllm";
-import { clearConnection, loadConnection } from "@/lib/store";
+import { connection } from "next/server";
+import { routes } from "@/lib/openllm";
 
-export async function POST(): Promise<Response> {
-  const conn = await loadConnection();
-  if (conn) await disconnect(openllm(), conn).catch(() => undefined);
-  await clearConnection();
-  return Response.json({ ok: true });
-}
+export const POST = async (req: Request): Promise<Response> => {
+  await connection();
+  return routes.disconnect(req);
+};
