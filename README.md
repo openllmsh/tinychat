@@ -10,4 +10,4 @@ Next.js + shadcn chat that runs on the signed-in user's OpenLLM account.
 - `lib/openllm-connect.ts` — the official helper, copied unchanged
 - `app/api/connect/start` → OpenLLM consent → `app/callback` (key pickup)
 - `app/api/chat` — streams `/v1/chat/completions` back as text
-- `.data/connection.json` — the one connection, plaintext (test only)
+- `.data/connection.json` — the one connection, AES-256-GCM under `CONNECTION_SECRET` (test only)
