@@ -2,6 +2,7 @@
   "name": "tinychat",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "predev": "node scripts/ensure-env.mjs",
     "dev": "next dev -p 3005",

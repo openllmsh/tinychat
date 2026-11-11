@@ -11,6 +11,7 @@
   <a href="https://www.npmjs.com/package/@openllmsh/sdk"><img alt="@openllmsh/sdk" src="https://img.shields.io/npm/v/@openllmsh/sdk.svg?label=%40openllmsh%2Fsdk"></a>
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js%2016-App%20Router-black.svg">
   <img alt="demo" src="https://img.shields.io/badge/type-demo-blue.svg">
+  <a href="https://github.com/openllmsh/tinychat/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
 ---
@@ -122,3 +123,7 @@ repo is UI.
 local models through one endpoint. See the
 [documentation](https://docs.openllm.sh) and the
 [SDK README](https://github.com/openllmsh/sdk#readme).
+
+## License
+
+**MIT** © OpenLLM, INC. See [`LICENSE`](./LICENSE).
