@@ -2,18 +2,29 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { MODEL_ALIASES } from "@openllmsh/sdk/connect/chat";
+import { Board, Tile } from "@/components/grid";
+import { Logo } from "@/components/logo";
+import { LANDING_PRIMARY_CLASS } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MODEL_ALIASES } from "@openllmsh/sdk/connect/chat";
 import { cn } from "@/lib/utils";
 
 type TMessage = { role: "user" | "assistant"; content: string };
 
 const ALIASES: readonly string[] = MODEL_ALIASES;
 
-export function Chat({ userId, models }: { userId: string; models: string[] }): React.ReactElement {
+export function Chat({
+  label,
+  via,
+  models,
+}: {
+  label: string;
+  via: "apiKey" | "connect";
+  models: string[];
+}): React.ReactElement {
   const router = useRouter();
   const options = [...ALIASES, ...models.filter((m) => !ALIASES.includes(m))];
   const [model, setModel] = useState("plus");
@@ -60,63 +71,76 @@ export function Chat({ userId, models }: { userId: string; models: string[] }): 
     }
   };
 
-  const disconnect = async (): Promise<void> => {
+  const signOut = async (): Promise<void> => {
     await fetch("/api/disconnect", { method: "POST" });
     router.refresh();
   };
 
   return (
-    <main className="mx-auto flex h-svh max-w-2xl flex-col gap-3 p-4">
-      <header className="flex items-center gap-2">
-        <h1 className="font-semibold">Tiny Chat</h1>
-        <span className="text-muted-foreground truncate text-xs">{userId}</span>
-        <div className="ml-auto flex items-center gap-2">
-          <Select value={model} onValueChange={(v) => v && setModel(v)}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {options.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" onClick={disconnect}>
-            Disconnect
-          </Button>
-        </div>
-      </header>
+    <main className="bg-background h-svh">
+      <Board className="mx-auto h-svh max-w-3xl grid-rows-[auto_1fr_auto] border-x border-[var(--grid-seam)]">
+        <Tile className="flex flex-wrap items-center gap-3 px-4 py-3">
+          <Logo className="h-4" />
+          <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 font-mono text-[10px] tracking-[0.18em] uppercase">
+            {via === "connect" ? "connected" : "api key"}
+          </span>
+          <span className="text-muted-foreground hidden truncate font-mono text-xs sm:inline">{label}</span>
+          <div className="ml-auto flex items-center gap-2">
+            <Select value={model} onValueChange={(v) => v && setModel(v)}>
+              <SelectTrigger className="w-44 font-mono text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {options.map((m) => (
+                  <SelectItem key={m} value={m} className="font-mono text-xs">
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={signOut}>
+              {via === "connect" ? "Disconnect" : "Sign out"}
+            </Button>
+          </div>
+        </Tile>
 
-      <ScrollArea className="min-h-0 flex-1 rounded-lg border">
-        <div className="flex flex-col gap-3 p-4">
-          {messages.length === 0 && (
-            <p className="text-muted-foreground py-16 text-center text-sm">Say something.</p>
-          )}
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={cn(
-                "max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap",
-                m.role === "user" ? "bg-primary text-primary-foreground self-end" : "bg-muted self-start",
+        <Tile className="min-h-0">
+          <ScrollArea className="h-full">
+            <div className="flex flex-col gap-3 p-4 sm:p-6">
+              {messages.length === 0 && (
+                <div className="text-muted-foreground flex flex-col items-center gap-2 py-24 text-center text-sm">
+                  <p className="text-foreground text-3xl font-semibold tracking-tighter text-balance">What&apos;s on your mind?</p>
+                  <p className="font-mono text-xs tracking-[0.08em]">
+                    model <span className="text-foreground">{model}</span> · from your OpenLLM account
+                  </p>
+                </div>
               )}
-            >
-              {m.content || "…"}
+              {messages.map((m, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap",
+                    m.role === "user" ? "bg-primary text-primary-foreground self-end" : "bg-muted self-start",
+                  )}
+                >
+                  {m.content || <span className="text-muted-foreground animate-pulse">…</span>}
+                </div>
+              ))}
+              <div ref={bottom} />
             </div>
-          ))}
-          <div ref={bottom} />
-        </div>
-      </ScrollArea>
+          </ScrollArea>
+        </Tile>
 
-      {error && <p className="text-destructive text-sm">{error}</p>}
-
-      <form onSubmit={send} className="flex gap-2">
-        <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Message" disabled={busy} />
-        <Button type="submit" disabled={busy || !input.trim()}>
-          Send
-        </Button>
-      </form>
+        <Tile className="flex flex-col gap-2 p-4">
+          {error && <p className="text-destructive text-xs">{error}</p>}
+          <form onSubmit={send} className="flex gap-2">
+            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Message" disabled={busy} />
+            <Button type="submit" className={LANDING_PRIMARY_CLASS} disabled={busy || !input.trim()}>
+              Send
+            </Button>
+          </form>
+        </Tile>
+      </Board>
     </main>
   );
 }

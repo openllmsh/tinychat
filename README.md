@@ -15,90 +15,106 @@
 
 ---
 
-A small Next.js + shadcn chat that runs on **the visitor's own OpenLLM
-account**. They click *Connect with OpenLLM*, approve, and chat with their
-own models and keys. The app never holds a provider key and pays for no
-tokens.
+A small Next.js chat built on `@openllmsh/sdk`, styled like OpenLLM. Open it,
+pick a way in, and chat with every model on an OpenLLM account:
 
-It exists to show how little code **Connect with OpenLLM** takes. Everything
-OpenLLM-specific (OAuth, key pickup, token refresh, model list, streaming
-chat and the HTTP routes) comes from `@openllmsh/sdk/connect`. The app adds
-one file, [`lib/openllm.ts`](./lib/openllm.ts), about 30 lines.
+| Way in | What you do | SDK |
+| --- | --- | --- |
+| **API key** (quickest) | Get a key at [openllm.sh/keys](https://www.openllm.sh/keys) and paste it in the app. | `@openllmsh/sdk/client` |
+| **Connect with OpenLLM** (optional) | Click the button and approve. Each visitor uses **their own** OpenLLM account; the app holds no provider key and pays for no tokens. | `@openllmsh/sdk/connect` |
+
+All the OpenLLM code is in one file, [`lib/openllm.ts`](./lib/openllm.ts).
+
+## Run it
+
+```sh
+bun install
+bun dev        # http://localhost:3005
+```
+
+Paste your API key on the start page. That's it: no config needed.
+
+The pasted key is checked against OpenLLM, then kept in an httpOnly cookie on
+the app's server, so the page's JavaScript never sees it.
+
+**To turn on Connect:** the first `bun dev` creates `.env.local` from
+`.env.example`. Create an app in OpenLLM → **Settings → Developers → Apps**,
+add `http://localhost:3005/callback` as a callback URL, paste the app's `.env`
+block into `.env.local`, set `CONNECTION_SECRET=$(openssl rand -base64 32)`,
+and restart. The Connect card turns into a button.
 
 ## How the SDK is used
 
-**1. Set it up once** — [`lib/openllm.ts`](./lib/openllm.ts)
+Both ways in give the page and the chat route the same small user object
+(`currentUser()` in `lib/openllm.ts`): a label, `models()` and `stream()`.
+
+### API key — `@openllmsh/sdk/client`
+
+```ts
+import { createClient } from "@openllmsh/sdk/client";
+import { chatTextStream } from "@openllmsh/sdk/connect";
+
+const client = createClient({
+  origin: "https://www.openllm.sh",
+  apiKey, // pasted in the UI, read from an httpOnly cookie
+  transport: { fetch, websocket: WebSocket },
+});
+
+const res = await client.chat.completions.create({ model, messages, stream: true });
+const text = chatTextStream(res.body);              // SSE → text deltas
+const models = await client.http.request("/v1/models");
+```
+
+[`app/api/key`](./app/api/key/route.ts) checks a pasted key with one
+`/v1/models` call before saving it. [`app/api/chat`](./app/api/chat/route.ts)
+sends `text` back with `encodeTextStream`, for both ways in.
+
+### Connect with OpenLLM — `@openllmsh/sdk/connect`
 
 ```ts
 import { connectRoutes, createConnect, encryptedConnectionStore } from "@openllmsh/sdk/connect";
 
-export const connect = createConnect({
+const connect = createConnect({
   store: encryptedConnectionStore(files, process.env.CONNECTION_SECRET),
 });
+const routes = connectRoutes(connect, { userKey: () => LOCAL_USER });
 
-export const routes = connectRoutes(connect, { userKey: () => LOCAL_USER });
+const user = await connect.user(LOCAL_USER);   // null until connected
+await user.models();
+await user.chat.stream({ model, messages });
 ```
 
-`createConnect` reads the `OPENLLM_*` env vars. You give it only two things:
+`createConnect` reads the `OPENLLM_*` env vars. You give it two things:
 
-- **where to keep each user's connection** — any `get` / `set` / `delete`
-  string store. `encryptedConnectionStore` encrypts it (AES-256-GCM) before
-  it reaches the store. This demo uses files in `.data/`; a real app uses a
-  database column.
-- **who the current user is** — `userKey`. This demo has one local user; a
+- **where to keep each user's connection**: any `get` / `set` / `delete`
+  string store. `encryptedConnectionStore` encrypts it (AES-256-GCM) first.
+  This demo uses files in `.data/`; a real app uses a database column.
+- **who the current user is**: `userKey`. This demo has one local user; a
   real app returns its signed-in user id.
 
-**2. Mount the routes** — each route file is one line:
+The SDK does the OAuth, key pickup and token refresh. Each route file is one
+line (they answer 404 until Connect is set up):
 
 | Route | SDK handler | What it does |
 | --- | --- | --- |
 | [`app/api/connect/start`](./app/api/connect/start/route.ts) | `routes.start` | Sends the user to OpenLLM consent. |
 | [`app/callback`](./app/callback/route.ts) | `routes.callback` | Picks up the user's key and saves the connection. |
-| [`app/api/chat`](./app/api/chat/route.ts) | `routes.chat` | One chat turn, streamed back as text. |
-| [`app/api/disconnect`](./app/api/disconnect/route.ts) | `routes.disconnect` | Forgets the connection. |
+| [`app/api/disconnect`](./app/api/disconnect/route.ts) | `routes.disconnect` | Revokes the connection (or forgets a pasted key). |
 
-**3. Use it in the page** — [`app/page.tsx`](./app/page.tsx)
+In [`app/page.tsx`](./app/page.tsx), `connectButtonUrl(connect.config)` gives
+the official button image, and `isOpenLLMError(err) && err.needsReconnect`
+tells you the user revoked access, so the page shows the button again.
 
-```ts
-import { connectButtonUrl, isOpenLLMError } from "@openllmsh/sdk/connect";
+### The chat UI
 
-const user = await connect.user(LOCAL_USER); // null if not connected
-const models = await user?.models();          // the user's own model list
-```
-
-`connectButtonUrl(connect.config)` gives the official button image.
-`isOpenLLMError(err) && err.needsReconnect` tells you when the user revoked
-access, so the page shows the button again.
-
-**4. The chat UI** — [`components/chat.tsx`](./components/chat.tsx) is plain
-React. It posts to `/api/chat` and reads the text stream. `MODEL_ALIASES`
-from `@openllmsh/sdk/connect/chat` fills the model picker.
-
-That is the whole integration. Everything else in the repo is UI.
-
-## Run it
-
-1. Create an app in OpenLLM → **Settings → Developers → Apps**, and add
-   `http://localhost:3005/callback` as a callback URL.
-2. Copy the env file and paste the app's `.env` block into it:
-
-   ```sh
-   cp .env.example .env.local
-   openssl rand -base64 32   # → CONNECTION_SECRET
-   ```
-
-3. Start it:
-
-   ```sh
-   bun install
-   bun dev        # http://localhost:3005
-   ```
-
-4. Click **Connect with OpenLLM**, approve, and chat.
+[`components/chat.tsx`](./components/chat.tsx) is plain React. It posts to
+`/api/chat` and reads the text stream. `MODEL_ALIASES` from
+`@openllmsh/sdk/connect/chat` fills the model picker. Everything else in the
+repo is UI.
 
 ## Stack
 
-- [`@openllmsh/sdk`](https://www.npmjs.com/package/@openllmsh/sdk) (`/connect`)
+- [`@openllmsh/sdk`](https://www.npmjs.com/package/@openllmsh/sdk) (`/client`, `/connect`)
 - Next.js 16 App Router, React 19
 - shadcn/ui + Tailwind CSS 4
 
