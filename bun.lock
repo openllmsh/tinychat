@@ -6,7 +6,7 @@
       "name": "openllm-chat-test",
       "dependencies": {
         "@base-ui/react": "^1.9.0",
-        "@openllmsh/sdk": "file:../openllm/packages/sdk",
+        "@openllmsh/sdk": "^2.10.12",
         "class-variance-authority": "^0.7.1",
         "cn": "^0.5.2",
         "lucide-react": "^1.70.0",
@@ -239,7 +239,7 @@
 
     "@nolyfill/is-core-module": ["@nolyfill/is-core-module@1.0.39", "", {}, "sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA=="],
 
-    "@openllmsh/sdk": ["@openllmsh/sdk@file:../openllm/packages/sdk", { "dependencies": { "@modelcontextprotocol/server": "^2.0.0", "@noble/ed25519": "^3.1.0", "@scure/bip39": "*", "effect": "4.0.6", "hash-wasm": "*" } }],
+    "@openllmsh/sdk": ["@openllmsh/sdk@2.10.12", "", { "dependencies": { "@modelcontextprotocol/server": "^2.0.0", "@noble/ed25519": "^3.1.0", "@scure/bip39": "*", "effect": "4.0.6", "hash-wasm": "*" } }, "sha512-vR0RYuyNGrv4INLtMSt0QFbprh8cJhqN3n1DnfWQPh7ZpcGMj2yrRfo08Pm/jkChG+diRqQ34ULY0IDSg5o5oQ=="],
 
     "@rtsao/scc": ["@rtsao/scc@1.1.0", "", {}, "sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g=="],
 
